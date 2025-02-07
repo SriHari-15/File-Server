@@ -1,32 +1,42 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for
 import os
 
 app = Flask(__name__)
-
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+def get_unique_filename(filename):
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    new_filename = filename
+
+    while os.path.exists(os.path.join(UPLOAD_FOLDER, new_filename)):
+        new_filename = f"{base} ({counter}){ext}"
+        counter += 1
+
+    return new_filename
+
 @app.route('/')
-def upload_page():
-    return render_template('index.html')
+def index():
+    return render_template('index.html', title="File Transfer")
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
+def upload():
     if 'file' not in request.files:
-        return "No file part", 400
+        return redirect(request.url)
 
     file = request.files['file']
     if file.filename == '':
-        return "No selected file", 400
+        return redirect(request.url)
 
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-    file.save(filepath)
-    return "File uploaded successfully!", 200
+    if file:
+        unique_filename = get_unique_filename(file.filename) # Generate unique name
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+        return f"File uploaded successfully as {unique_filename}!"
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True) # Change port here if necessary
